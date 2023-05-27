@@ -49,4 +49,11 @@ contract MoneyBoxesTransferFromSafeToBox is MoneyBoxesModuleBaseTest {
     function test_transferFromSafeToBoxes_ERC20() public {
         parameterized_test_transferFromSafeToBoxes(address(erc20Token));
     }
+
+    function test_transferFromSafeToBoxes_revert_if_not_owner() public {
+        uint256 safeBalanceBefore = getTokenBalance(address(safe), address(0));
+
+        setUpNotOwnerTest();
+        moneyBoxesModule.transferFromSafeToBoxes(safeBalanceBefore, address(0));
+    }
 }

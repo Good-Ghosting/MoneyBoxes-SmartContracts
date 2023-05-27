@@ -47,4 +47,13 @@ contract MoneyBoxesTransferFromBoxToBox is MoneyBoxesTransferFromBox {
         );
         moneyBoxesModule.transferFromBoxToBox(boxOneIndex, boxTwoIndex, toTransferAmount, address(0));
     }
+
+    function test_transferFromBoxToBox_revert_if_not_owner() public {
+        uint256 boxOneIndex = 0;
+        uint256 boxTwoIndex = 1;
+        address erc20Token = address(erc20Token);
+
+        setUpNotOwnerTest();
+        moneyBoxesModule.transferFromBoxToBox(boxOneIndex, boxTwoIndex, 10, erc20Token);
+    }
 }

@@ -17,10 +17,10 @@ contract MoneyBoxesTransferFromBoxToSafe is MoneyBoxesTransferFromBox {
         uint256 boxBalanceAfter = moneyBoxesModule.getBalanceOfBox(boxIndex, token);
         uint256 safeBalanceAfter = getTokenBalance(address(safe), token);
 
-        uint256 safeBalanceDifferece = safeBalanceAfter - safeBalanceBefore;
+        uint256 safeBalanceDifference = safeBalanceAfter - safeBalanceBefore;
 
         assertNotEq(boxBalanceBefore, 0);
-        assertEq(safeBalanceDifferece, boxBalanceBefore);
+        assertEq(safeBalanceDifference, boxBalanceBefore);
         assertEq(boxBalanceAfter, 0);
     }
 
@@ -48,5 +48,15 @@ contract MoneyBoxesTransferFromBoxToSafe is MoneyBoxesTransferFromBox {
         );
 
         moneyBoxesModule.transferFromBoxToSafe(boxIndex, toTransferAmount, address(0));
+    }
+
+    function test_transferFromBoxToSafe_revert_if_not_owner() public {
+        uint256 boxIndex = 0;
+        address erc20Token = address(erc20Token);
+
+        uint256 boxBalanceBefore = moneyBoxesModule.getBalanceOfBox(boxIndex, erc20Token);
+
+        setUpNotOwnerTest();
+        moneyBoxesModule.transferFromBoxToSafe(boxIndex, boxBalanceBefore, erc20Token);
     }
 }

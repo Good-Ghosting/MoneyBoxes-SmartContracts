@@ -44,6 +44,13 @@ contract MoneyBoxesModuleBaseTest is Test {
         }
     }
 
+    address constant NotOwnerAddress = 0x4e25E04C41A47C2042d919067b18b8177ED3cf13;
+
+    function setUpNotOwnerTest() internal {
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(NotOwnerAddress);
+    }
+
     receive() external payable {}
     fallback() external payable {}
 }

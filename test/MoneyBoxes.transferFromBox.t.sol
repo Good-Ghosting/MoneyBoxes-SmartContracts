@@ -8,7 +8,7 @@ import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "./MoneyBoxes.base.t.sol";
 
 contract MoneyBoxesTransferFromBox is MoneyBoxesModuleBaseTest {
-    function setUp() public override {
+    function setUp() public virtual override {
         MoneyBoxesModuleBaseTest.setUp();
 
         //start with fund in boxes
