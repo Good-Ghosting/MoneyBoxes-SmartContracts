@@ -47,6 +47,30 @@ contract MoneyBoxesInitialization is MoneyBoxesModuleBaseTest {
         moneyBoxesModule = new MoneyBoxesModule(address(safe),moneyBoxesConfigArray);
     }
 
+    function test_initialization_fail_more_than_max_number_of_boxes() public {
+        uint256[] memory percentagesBoxes = new uint256[](11);
+
+        for (uint256 i = 0; i < percentagesBoxes.length; i++) {
+            percentagesBoxes[i] = 1;
+        }
+
+        MoneyBoxesModule.MoneyBoxConfiguration[] memory moneyBoxesConfigArray =
+            createBoxesWithPercentage(percentagesBoxes);
+
+        vm.expectRevert(MoneyBoxesModule.InvalidNumberOfBoxes.selector);
+        moneyBoxesModule = new MoneyBoxesModule(address(safe),moneyBoxesConfigArray);
+    }
+
+    function test_initialization_fail_zero_boxes() public {
+        uint256[] memory percentagesBoxes = new uint256[](0);
+
+        MoneyBoxesModule.MoneyBoxConfiguration[] memory moneyBoxesConfigArray =
+            createBoxesWithPercentage(percentagesBoxes);
+
+        vm.expectRevert(MoneyBoxesModule.InvalidNumberOfBoxes.selector);
+        moneyBoxesModule = new MoneyBoxesModule(address(safe),moneyBoxesConfigArray);
+    }
+
     function test_initialization_fail_safeAddress_zero() public {
         vm.expectRevert(MoneyBoxesModule.InvalidSafeAddress.selector);
         moneyBoxesModule = new MoneyBoxesModule(address(0),boxConfiguration);
