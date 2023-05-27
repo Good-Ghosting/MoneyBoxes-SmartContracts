@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "./Safe.sol";
-import "./IERC20.sol";
+import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "forge-std/console2.sol";
 
 contract MoneyBoxesModule {
