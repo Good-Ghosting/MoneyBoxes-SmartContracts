@@ -4,22 +4,10 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 import "../src/MoneyBoxes.sol";
-
+import "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "./MoneyBoxes.base.t.sol";
 
 contract MoneyBoxesTransferFromSafeToBox is MoneyBoxesModuleBaseTest {
-    function printBoxesValues() internal {
-        uint256 allBoxesBalance = address(moneyBoxesModule).balance;
-        uint256 box1Balance = moneyBoxesModule.getBalanceOfBox(0, address(0));
-        uint256 box2Balance = moneyBoxesModule.getBalanceOfBox(1, address(0));
-        uint256 box3Balance = moneyBoxesModule.getBalanceOfBox(2, address(0));
-        console.log("Boxes ");
-        console.log("allBoxesBalance", allBoxesBalance);
-        console.log("box1Balance", box1Balance);
-        console.log("box2Balance", box2Balance);
-        console.log("box3Balance", box3Balance);
-    }
-
     function getBoxesPercentageSum() internal view returns (uint256) {
         uint256 percentageSum = 0;
         for (uint256 i = 0; i < boxConfiguration.length; i++) {
@@ -28,31 +16,37 @@ contract MoneyBoxesTransferFromSafeToBox is MoneyBoxesModuleBaseTest {
         return percentageSum;
     }
 
-    function test_transferFromSafeToBoxes_nativeToken() public {
-        uint256 safeBalanceBefore = address(safe).balance;
+    function parameterized_test_transferFromSafeToBoxes(address token) internal {
+        uint256 safeBalanceBefore = getTokenBalance(address(safe), token);
+        uint256 boxesBalanceBefore = getTokenBalance(address(moneyBoxesModule), token);
 
-        moneyBoxesModule.transferFromSafeToBoxes(safeBalanceBefore, address(0));
+        moneyBoxesModule.transferFromSafeToBoxes(safeBalanceBefore, token);
 
-        uint256 safeBalanceAfter = address(safe).balance;
+        uint256 safeBalanceAfter = getTokenBalance(address(safe), token);
+        uint256 boxesBalanceAfter = getTokenBalance(address(moneyBoxesModule), token);
+
         uint256 safeBalanceDifferece = safeBalanceBefore - safeBalanceAfter;
+        uint256 boxesBalanceDifferece = boxesBalanceAfter - boxesBalanceBefore;
 
         uint256 totalBoxesPercentage = getBoxesPercentageSum();
         uint256 expectedBalanceDifference = (safeBalanceBefore * totalBoxesPercentage) / 100;
 
         assertEq(safeBalanceDifferece, expectedBalanceDifference);
+        assertEq(boxesBalanceDifferece, expectedBalanceDifference);
+
+        //check that boxes balances are correct
+        for (uint256 i = 0; i < boxConfiguration.length; i++) {
+            uint256 boxBalance = moneyBoxesModule.getBalanceOfBox(i, token);
+            uint256 expectedBoxBalance = (safeBalanceBefore * boxConfiguration[i].percentage) / 100;
+            assertEq(boxBalance, expectedBoxBalance);
+        }
+    }
+
+    function test_transferFromSafeToBoxes_nativeToken() public {
+        parameterized_test_transferFromSafeToBoxes(address(0));
     }
 
     function test_transferFromSafeToBoxes_ERC20() public {
-        uint256 safeBalanceBefore = address(safe).balance;
-
-        moneyBoxesModule.transferFromSafeToBoxes(safeBalanceBefore, address(0));
-
-        uint256 safeBalanceAfter = address(safe).balance;
-        uint256 safeBalanceDifferece = safeBalanceBefore - safeBalanceAfter;
-
-        uint256 totalBoxesPercentage = getBoxesPercentageSum();
-        uint256 expectedBalanceDifference = (safeBalanceBefore * totalBoxesPercentage) / 100;
-
-        assertEq(safeBalanceDifferece, expectedBalanceDifference);
+        parameterized_test_transferFromSafeToBoxes(address(erc20Token));
     }
 }
