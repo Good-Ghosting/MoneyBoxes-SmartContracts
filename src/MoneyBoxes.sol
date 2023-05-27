@@ -3,11 +3,16 @@ pragma solidity ^0.8.13;
 
 import "./Safe.sol";
 import "openzeppelin-contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/access/Ownable.sol";
 import "forge-std/console2.sol";
 
-contract MoneyBoxesModule {
+//Using owner for now, but move to SignatureDecoder
+contract MoneyBoxesModule is Ownable {
     // added box percentage should be between 0 and 100
     error InvalidBoxPercentage();
+
+    // number of boxes should be between 1 and 10
+    error InvalidNumberOfBoxes();
 
     // native or erc20 token transfer failed
     error TokenTransferReverted();
@@ -17,6 +22,8 @@ contract MoneyBoxesModule {
 
     // Invalid safe address
     error InvalidSafeAddress();
+
+    error AmountIsAlreadyAccountedFor();
 
     struct MoneyBoxConfiguration {
         uint256 percentage;
@@ -37,11 +44,11 @@ contract MoneyBoxesModule {
 
     Safe public immutable safeAddress;
 
-    receive() external payable {}
-
-    fallback() external payable {}
-
     constructor(address _safeAddress, MoneyBoxConfiguration[] memory _boxesConfiguration) {
+        if (_boxesConfiguration.length < 1 || _boxesConfiguration.length > 10) {
+            revert InvalidNumberOfBoxes();
+        }
+
         uint256 totalPercentage = 0;
         for (uint256 i = 0; i < _boxesConfiguration.length; i++) {
             totalPercentage += _boxesConfiguration[i].percentage;
@@ -59,7 +66,30 @@ contract MoneyBoxesModule {
         safeAddress = Safe(_safeAddress);
     }
 
-    function transferFromSafeToBoxes(uint256 amount, address token) external {
+    function _boxHasEnoughBalance(uint256 boxIndex, uint256 amount, address token) internal view {
+        if (boxes[boxIndex].boxBalance[token] < amount) {
+            revert NotEnoughFundsInBox(boxIndex, amount);
+        }
+    }
+
+    function _transferFromBoxesToAddress(uint256 amount, address token, address toAddress) internal {
+        bool result;
+        if (token == address(0)) {
+            (result,) = address(toAddress).call{value: amount}("");
+        } else {
+            result = IERC20(token).transfer(address(toAddress), amount);
+        }
+
+        if (!result) {
+            revert TokenTransferReverted();
+        }
+    }
+
+    function getBalanceOfBox(uint256 boxId, address token) public view returns (uint256) {
+        return boxes[boxId].boxBalance[token];
+    }
+
+    function transferFromSafeToBoxes(uint256 amount, address token) external onlyOwner {
         uint256 totalAmountToTransfer = 0;
 
         for (uint256 i = 0; i < boxes.length; i++) {
@@ -84,48 +114,51 @@ contract MoneyBoxesModule {
         }
     }
 
-    function _boxHasEnoughBalance(uint256 boxIndex, uint256 amount, address token) internal view {
-        if (boxes[boxIndex].boxBalance[token] < amount) {
-            revert NotEnoughFundsInBox(boxIndex, amount);
-        }
-    }
-
-    function _transferFromBoxesToAddress(uint256 amount, address token, address toAddress) internal {
-        bool result;
-        if (token == address(0)) {
-            console2.log("amount to transfer", amount);
-            (result,) = address(toAddress).call{value: amount}("");
-        } else {
-            result = IERC20(token).transfer(address(toAddress), amount);
-        }
-
-        if (!result) {
-            revert TokenTransferReverted();
-        }
-    }
-
-    function transferFromBoxToSafe(uint256 boxIndex, uint256 amount, address token) external {
+    function transferFromBoxToSafe(uint256 boxIndex, uint256 amount, address token) external onlyOwner {
         _boxHasEnoughBalance(boxIndex, amount, token);
 
         boxes[boxIndex].boxBalance[token] -= amount;
         _transferFromBoxesToAddress(amount, token, address(safeAddress));
     }
 
-    function transferFromBoxToBox(uint256 fromBoxId, uint256 toBoxId, uint256 amount, address token) external {
+    function transferFromBoxToBox(uint256 fromBoxId, uint256 toBoxId, uint256 amount, address token)
+        external
+        onlyOwner
+    {
         _boxHasEnoughBalance(fromBoxId, amount, token);
 
         boxes[fromBoxId].boxBalance[token] -= amount;
         boxes[toBoxId].boxBalance[token] += amount;
     }
 
-    function getBalanceOfBox(uint256 boxId, address token) public view returns (uint256) {
-        return boxes[boxId].boxBalance[token];
-    }
-
-    function withdrawFromBoxToAddress(uint256 boxIndex, uint256 amount, address token, address toAddress) external {
+    function transferFromBoxToAddress(uint256 boxIndex, uint256 amount, address token, address toAddress)
+        external
+        onlyOwner
+    {
         _boxHasEnoughBalance(boxIndex, amount, token);
 
         boxes[boxIndex].boxBalance[token] -= amount;
         _transferFromBoxesToAddress(amount, token, toAddress);
     }
+
+    //can be used if funds are sent directly to the contract without using the transferFromSafeToBoxes function
+    function transferNotAccountedFundsToSafe(address token) external onlyOwner {
+        uint256 totalAmountAccounted = 0;
+        for (uint256 i = 0; i < boxes.length; i++) {
+            totalAmountAccounted += boxes[i].boxBalance[token];
+        }
+
+        uint256 totalAmountInTheContract =
+            token == address(0) ? address(this).balance : IERC20(token).balanceOf(address(this));
+
+        if (totalAmountAccounted >= totalAmountInTheContract) {
+            revert AmountIsAlreadyAccountedFor();
+        }
+
+        uint256 totalAmountToTransfer = totalAmountInTheContract - totalAmountAccounted;
+        _transferFromBoxesToAddress(totalAmountToTransfer, token, address(safeAddress));
+    }
+
+    receive() external payable {}
+    fallback() external payable {}
 }
