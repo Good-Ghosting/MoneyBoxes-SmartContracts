@@ -89,6 +89,10 @@ contract MoneyBoxesModule is Ownable {
         return boxes[boxId].boxBalance[token];
     }
 
+    function getNumberOfBoxes() public view returns (uint256) {
+        return boxes.length;
+    }
+
     function transferFromSafeToBoxes(uint256 amount, address token) external onlyOwner {
         uint256 totalAmountToTransfer = 0;
 

@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "../src/MoneyBoxes.sol";
+import "../src/MoneyBoxesFactory.sol";
 import "../src/Safe.sol";
 import "forge-std/console2.sol";
 import "openzeppelin-contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
@@ -20,7 +21,8 @@ contract MoneyBoxesModuleBaseTest is Test {
         boxConfiguration.push(MoneyBoxesModule.MoneyBoxConfiguration(20, "Box 2", true));
         boxConfiguration.push(MoneyBoxesModule.MoneyBoxConfiguration(30, "Box 3", true));
 
-        moneyBoxesModule = new MoneyBoxesModule(address(safe),boxConfiguration);
+        MoneyBoxesFactory moneyBoxesFactory = new MoneyBoxesFactory();
+        moneyBoxesModule = moneyBoxesFactory.createMoneyBoxesContract(address(safe), boxConfiguration);
 
         //Add module- using prank to bypass safe check
         vm.prank(address(safe));
